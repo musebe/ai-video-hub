@@ -26,12 +26,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             >
               Hub
             </Link>
-            <Link
-              href='/analytics'
-              className='text-sm font-medium text-muted-foreground transition-hover hover:text-primary'
-            >
-              Analytics
-            </Link>
+            
           </nav>
           <div className='flex items-center gap-2'>
             <Button variant='outline' size='sm' asChild>

@@ -1,11 +1,10 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useEffect } from 'react';
 import { Badge } from '@/components/ui/badge';
 import { CldVideoPlayer } from 'next-cloudinary';
 import 'next-cloudinary/dist/cld-video-player.css';
 
-// Exporting the interface for page.tsx
 export interface CloudinaryPlayerInstance {
   on: (event: string, callback: () => void) => void;
   currentTime: (seconds?: number) => number;
@@ -16,27 +15,24 @@ export interface CloudinaryPlayerInstance {
 
 interface VideoStageProps {
   publicId: string;
+  playbackSession: number; // New Prop
   onTimeUpdate: (time: number) => void;
   playerRef: React.MutableRefObject<CloudinaryPlayerInstance | null>;
 }
 
 export function VideoStage({
   publicId,
+  playbackSession,
   onTimeUpdate,
   playerRef,
 }: VideoStageProps) {
-  // 1. FIX: Use useState initializer for Stable, Unique IDs
-  // We use useState(() => ...) because this function runs ONLY once when the
-  // component mounts. This satisfies the linter (it's not a render side-effect)
-  // and solves the "Zombie Player" issue by guaranteeing a fresh ID every time
-  // the parent remounts this component.
-  const [playerId] = useState(
-    () =>
-      `player-${publicId.replace(/\//g, '-')}-${Math.random().toString(36).substring(2, 9)}`,
-  );
+  // 1. PURE ID GENERATION
+  // No hooks, no side effects, no random numbers.
+  // We simply combine the static publicId with the dynamic session ID from the parent.
+  // This satisfies Hydration (server sees 0, client sees 0 initially)
+  // and Uniqueness (client updates session on click -> new string).
+  const playerId = `player-${publicId.replace(/\//g, '-')}-${playbackSession}`;
 
-  // 2. Safety Cleanup
-  // Ensure we kill the reference when this specific instance dies.
   useEffect(() => {
     return () => {
       if (playerRef.current) {
@@ -46,11 +42,11 @@ export function VideoStage({
   }, [playerRef]);
 
   return (
-    <div className='w-full space-y-10 animate-in fade-in slide-in-from-bottom-4 duration-700'>
-      <div className='relative aspect-video w-full overflow-hidden rounded-2xl bg-slate-900 shadow-2xl ring-12 ring-white'>
+    <div className='w-full space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-700'>
+      <div className='relative aspect-video w-full overflow-hidden rounded-2xl bg-slate-900 shadow-2xl ring-1 ring-white/10'>
         <CldVideoPlayer
-          key={playerId} // Use the generated stable ID as the key
-          id={playerId}
+          key={playerId} // Unique key ensures fresh mount
+          id={playerId} // Unique ID ensures global registry safety
           width='1920'
           height='1080'
           src={publicId}
@@ -63,7 +59,6 @@ export function VideoStage({
           }}
           onDataLoad={({ player }: { player: CloudinaryPlayerInstance }) => {
             playerRef.current = player;
-
             player.on('timeupdate', () => {
               onTimeUpdate(player.currentTime());
             });
@@ -71,23 +66,27 @@ export function VideoStage({
         />
       </div>
 
-      <div className='space-y-6 px-2'>
-        <div className='flex items-start justify-between gap-6'>
+      <div className='px-1'>
+        <div className='flex flex-col md:flex-row md:items-start md:justify-between gap-6'>
           <div className='space-y-2'>
-            <h1 className='text-3xl font-extrabold tracking-tight text-slate-900 lg:text-4xl'>
-              Next.js Media Upload Tutorial
+            <h1 className='text-2xl font-bold tracking-tight text-slate-900'>
+              Building an AI Video Knowledge Hub
             </h1>
-            <p className='text-lg text-slate-500 leading-relaxed max-w-3xl'>
-              Mastering the Cloudinary upload lifecycle and AI-powered metadata
-              within a modern Next.js 16 architecture.
+            <p className='text-base text-slate-500 max-w-3xl leading-relaxed'>
+              Solving Long-Form Content Fatigue with React and Cloudinary.
+              Automatically generate searchable transcripts and intelligent
+              video chapters to turn webinars into accessible, actionable
+              knowledge libraries.
             </p>
           </div>
-          <Badge
-            variant='secondary'
-            className='mt-2 bg-sky-50 text-sky-600 border-sky-100 px-4 py-1.5 font-bold uppercase tracking-widest text-[10px]'
-          >
-            Webinar
-          </Badge>
+          <div className='shrink-0'>
+            <Badge
+              variant='secondary'
+              className='bg-indigo-50 text-indigo-700 border-indigo-100 px-3 py-1 font-semibold text-xs tracking-wide uppercase'
+            >
+              AI Workloads
+            </Badge>
+          </div>
         </div>
       </div>
     </div>
