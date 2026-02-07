@@ -26,11 +26,10 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             >
               Hub
             </Link>
-            
           </nav>
           <div className='flex items-center gap-2'>
             <Button variant='outline' size='sm' asChild>
-              <Link href='https://github.com/musebe/optiflow'>
+              <Link href='https://github.com/musebe/ai-video-hub'>
                 <GithubIcon className='mr-2 h-4 w-4' />
                 GitHub
               </Link>
