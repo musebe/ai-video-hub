@@ -1,53 +1,67 @@
 /**
- * @fileoverview Fully typed Video Player Engine.
- * Resolves remaining ESLint 'any' errors in the analytics shim.
+ * @fileoverview Finalized, strictly-typed Video Player Engine.
+ * This version eliminates all 'any' types and satisfies unused variable checks.
  */
 
 'use client';
 
 import * as React from 'react';
 import Script from 'next/script';
-import { useVideoMetadata } from '@/hooks';
 
 /**
- * Define the structure for our analytics shim.
+ * 1. Define specific interfaces for our global dependencies.
  */
 interface GTagShim {
   (...args: unknown[]): void;
 }
 
-if (typeof window !== 'undefined') {
-  // Replace 'any' with our new GTagShim interface
-  (window as Window & { gtag?: GTagShim }).gtag =
-    (window as Window & { gtag?: GTagShim }).gtag || function () {};
-}
-
-interface CloudinaryVideoPlayer {
+export interface CloudinaryVideoPlayer {
   on: (event: string, callback: () => void) => void;
   currentTime: (seconds?: number) => number;
   play: () => void;
 }
 
-declare global {
-  interface Window {
-    cloudinary: {
-      videoPlayer: (
-        el: HTMLVideoElement | null,
-        options: object,
-      ) => CloudinaryVideoPlayer;
-    };
-  }
+/**
+ * 2. Create a combined interface for the Window object.
+ */
+interface CloudinaryWindow extends Window {
+  gtag?: GTagShim;
+  cloudinary: {
+    videoPlayer: (
+      el: HTMLVideoElement | null,
+      options: object,
+    ) => CloudinaryVideoPlayer;
+  };
 }
 
-export function VideoPlayerEngine({ publicId }: { publicId: string }) {
+/**
+ * 3. Initialize the shim safely using our new type.
+ */
+if (typeof window !== 'undefined') {
+  const win = window as unknown as CloudinaryWindow;
+  win.gtag = win.gtag || function () {};
+}
+
+interface VideoPlayerEngineProps {
+  publicId: string;
+  onTimeUpdate: (time: number) => void;
+  playerRef: React.MutableRefObject<CloudinaryVideoPlayer | null>;
+}
+
+export function VideoPlayerEngine({
+  publicId,
+  onTimeUpdate,
+  playerRef,
+}: VideoPlayerEngineProps) {
   const videoRef = React.useRef<HTMLVideoElement>(null);
-  const playerRef = React.useRef<CloudinaryVideoPlayer | null>(null);
-  const { handleTimeUpdate } = useVideoMetadata(playerRef);
 
   const onPlayerReady = () => {
-    if (!window.cloudinary || !videoRef.current) return;
+    // Cast window to our custom interface to avoid 'any'
+    const win = window as unknown as CloudinaryWindow;
 
-    playerRef.current = window.cloudinary.videoPlayer(videoRef.current, {
+    if (!win.cloudinary || !videoRef.current) return;
+
+    playerRef.current = win.cloudinary.videoPlayer(videoRef.current, {
       cloudName: process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME,
       secure: true,
       fluid: true,
@@ -56,7 +70,10 @@ export function VideoPlayerEngine({ publicId }: { publicId: string }) {
       accessibilityMode: true,
     });
 
-    playerRef.current.on('timeupdate', handleTimeUpdate);
+    playerRef.current?.on('timeupdate', () => {
+      const time = playerRef.current?.currentTime() || 0;
+      onTimeUpdate(time);
+    });
   };
 
   return (
