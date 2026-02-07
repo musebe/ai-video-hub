@@ -1,19 +1,14 @@
-/**
- * @fileoverview Video Stage with fixed Interface for Seeking (Setter support).
- */
-
 'use client';
 
-import * as React from 'react';
+import { useState, useEffect } from 'react';
 import { Badge } from '@/components/ui/badge';
 import { CldVideoPlayer } from 'next-cloudinary';
 import 'next-cloudinary/dist/cld-video-player.css';
 
-// 1. FIX: Update currentTime to accept an optional argument (seconds)
-// This allows it to work as both a Getter (current time) and a Setter (seek).
+// Exporting the interface for page.tsx
 export interface CloudinaryPlayerInstance {
   on: (event: string, callback: () => void) => void;
-  currentTime: (seconds?: number) => number; // <--- Updated signature
+  currentTime: (seconds?: number) => number;
   dispose: () => void;
   play: () => Promise<void>;
   source: (publicId: string, options?: unknown) => void;
@@ -30,16 +25,37 @@ export function VideoStage({
   onTimeUpdate,
   playerRef,
 }: VideoStageProps) {
+  // 1. FIX: Use useState initializer for Stable, Unique IDs
+  // We use useState(() => ...) because this function runs ONLY once when the
+  // component mounts. This satisfies the linter (it's not a render side-effect)
+  // and solves the "Zombie Player" issue by guaranteeing a fresh ID every time
+  // the parent remounts this component.
+  const [playerId] = useState(
+    () =>
+      `player-${publicId.replace(/\//g, '-')}-${Math.random().toString(36).substring(2, 9)}`,
+  );
+
+  // 2. Safety Cleanup
+  // Ensure we kill the reference when this specific instance dies.
+  useEffect(() => {
+    return () => {
+      if (playerRef.current) {
+        playerRef.current = null;
+      }
+    };
+  }, [playerRef]);
+
   return (
     <div className='w-full space-y-10 animate-in fade-in slide-in-from-bottom-4 duration-700'>
       <div className='relative aspect-video w-full overflow-hidden rounded-2xl bg-slate-900 shadow-2xl ring-12 ring-white'>
         <CldVideoPlayer
-          key={publicId}
-          id={publicId}
+          key={playerId} // Use the generated stable ID as the key
+          id={playerId}
           width='1920'
           height='1080'
           src={publicId}
           autoplay={true}
+          controls={true}
           colors={{
             accent: '#6366f1',
             base: '#0f172a',
@@ -49,7 +65,6 @@ export function VideoStage({
             playerRef.current = player;
 
             player.on('timeupdate', () => {
-              // Works as a getter (0 args)
               onTimeUpdate(player.currentTime());
             });
           }}
